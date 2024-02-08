@@ -1,0 +1,92 @@
+---
+layout: no_header
+---
+
+<head>
+    <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+        }
+      
+        #submit-form {
+          background-color: #f9f9f9;
+          padding: 20px;
+          border-radius: 8px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          max-width: 400px;
+          margin: 0 auto;
+        }
+      
+        label {
+          font-size: 16px;
+          color: #333;
+        }
+      
+        input[type="text"] {
+          width: calc(100% - 22px); /* Full width minus padding and border */
+          padding: 10px;
+          margin-top: 5px;
+          margin-bottom: 20px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          box-sizing: border-box; /* Includes padding and border in the element's total width and height */
+        }
+      
+        button[type="submit"] {
+            background-color: #492365; /* Wildcat Purple */
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #3a1c4e; /* A darker shade of Wildcat Purple for hover effect */
+        }
+      </style>
+      
+</head>
+
+<form id="submit-form">
+    <label for="valueInput">Enter answer:<br></label>
+    <input type="text" id="valueInput" name="value" maxlength="50" autocomplete="off">
+    <br>
+    <button type="submit">Submit</button>
+</form>
+
+<script>
+    document.getElementById('submit-form').onsubmit = function(event) {
+        event.preventDefault();
+        var value = document.getElementById('valueInput').value;
+        var sanitizedValue = sanitizeInput(value);
+
+        // Ensure the value is treated as a string
+        var data = {value: sanitizedValue.toString()};
+
+        fetch('https://script.google.com/macros/s/AKfycbzkW5eMlGxHlaLMbpQ4kQfJDtLpPSXPwpRwEkeXwjPH6Zjr9k4ffmt64jBTJaeaopBHiA/exec', {
+            method: 'POST',
+            mode: 'no-cors', // Important for avoiding CORS errors
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        })
+        .then(response => {
+            console.log('Submitted successfully');
+            // Clear the form after submission
+            document.getElementById('submit-form').reset();
+        })
+        .catch(error => console.error('Error:', error));
+    };
+
+    function sanitizeInput(str) {
+        return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+</script>
