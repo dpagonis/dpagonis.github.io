@@ -1,0 +1,39 @@
+---
+layout: default
+---
+
+<form id="submit-form">
+    <label for="valueInput">Enter answer:</label>
+    <input type="text" id="valueInput" name="value" maxlength="50">
+    <button type="submit">Submit</button>
+</form>
+
+<script>
+    document.getElementById('submit-form').onsubmit = function(event) {
+        event.preventDefault();
+        var value = document.getElementById('valueInput').value;
+        var sanitizedValue = sanitizeInput(value);
+
+        // Ensure the value is treated as a string
+        var data = {value: sanitizedValue.toString()};
+
+        fetch('https://script.google.com/macros/s/AKfycbyI5qwGjHHy5wk8xJwwnnx9pEBteD1UX643doMD-SI-mGY7zPSDpbWYR0tyttgojNhVDw/exec', {
+            method: 'POST',
+            mode: 'no-cors', // Important for avoiding CORS errors
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+        })
+        .then(response => console.log('Submitted successfully'))
+        .catch(error => console.error('Error:', error));
+    };
+
+    function sanitizeInput(str) {
+        return str.replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+    }
+</script>
