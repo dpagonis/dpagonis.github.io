@@ -1,13 +1,13 @@
 # Site settings
 title: Demetrios Pagonis
-description: Atmospheric Chemistry at Weber State University
+description: Atmospheric Chemistry
 # baseurl: "" # the subpath of your site, e.g. /blog
 # url: "localhost:3000" # the base hostname & protocol for your site e.g. http://willianjusten.com.br
 
 # User settings
 username: Demetrios Pagonis
 user_description: desc
-user_title: Atmospheric Chemistry at Weber State University
+user_title: Atmospheric Chemistry
 email: demetriospagonis@weber.edu
 twitter_username: djpagonis
 github_username:  dpagonis
