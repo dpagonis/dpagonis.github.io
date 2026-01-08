@@ -46,10 +46,36 @@ layout: no_header
         button[type="submit"]:hover {
             background-color: #3a1c4e; /* A darker shade of Wildcat Purple for hover effect */
         }
+
+        #confirmation-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #492365; /* Wildcat Purple */
+            color: white;
+            padding: 15px 30px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1000;
+            font-size: 16px;
+        }
+
+        #confirmation-message.show {
+            opacity: 1;
+        }
+
+        #confirmation-message.fade-out {
+            opacity: 0;
+        }
       </style>
       
       <meta name="viewport" content="width=device-width, initial-scale=1">
 </head>
+
+<div id="confirmation-message">✓ Submitted successfully</div>
 
 <form id="submit-form">
     <label for="valueInput">Enter answer:<br></label>
@@ -79,6 +105,8 @@ layout: no_header
             console.log('Submitted successfully');
             // Clear the form after submission
             document.getElementById('submit-form').reset();
+            // Show confirmation message
+            showConfirmation();
         })
         .catch(error => console.error('Error:', error));
     };
@@ -89,5 +117,17 @@ layout: no_header
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+    }
+
+    function showConfirmation() {
+        var message = document.getElementById('confirmation-message');
+        message.classList.add('show');
+        setTimeout(function() {
+            message.classList.remove('show');
+            message.classList.add('fade-out');
+            setTimeout(function() {
+                message.classList.remove('fade-out');
+            }, 300);
+        }, 2000);
     }
 </script>
