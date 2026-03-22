@@ -1,0 +1,452 @@
+---
+layout: no_header
+---
+
+<head>
+    <!--
+    =====================================================================
+    POSTER JUDGING FORM — Configuration Notes
+    =====================================================================
+
+    POSTER LIST:
+      Replace /assets/posterlist.csv each year. Required columns:
+        Author, Student, Title, Poster Number
+      The "Student" column (e.g. "Graduate", "Undergraduate") is shown
+      in parentheses after the author name. Set it to "No" or leave
+      blank to omit the parenthetical.
+
+    RUBRIC ITEMS:
+      Edit the five <legend> text nodes below to match your criteria.
+
+    GOOGLE APPS SCRIPT:
+      1. Create a new Google Apps Script project with a doPost() function
+         that appends a row to your target Sheet.
+      2. Deploy as a Web App (Execute as: Me, Access: Anyone).
+      3. Paste the deployment URL below (replace YOUR_APPS_SCRIPT_URL_HERE).
+
+      The script receives a POST body with this JSON payload:
+        {
+          "timestamp":      ISO date string,
+          "judge_name":     string,
+          "poster_number":  string,
+          "poster_title":   string,
+          "poster_author":  string,
+          "poster_student": string,
+          "score_1":        number (1–5),
+          "score_2":        number (1–5),
+          "score_3":        number (1–5),
+          "score_4":        number (1–5),
+          "score_5":        number (1–5)
+        }
+    =====================================================================
+    -->
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+
+        #judging-form {
+            background-color: #f9f9f9;
+            padding: 28px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 520px;
+            margin: 30px auto;
+        }
+
+        h2 {
+            margin: 0 0 22px;
+            color: #492365;
+            font-size: 1.4rem;
+        }
+
+        .field-label {
+            font-size: 15px;
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 9px 11px;
+            margin-bottom: 18px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 15px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #492365;
+        }
+
+        #poster-info {
+            background: #eee8f4;
+            border-left: 4px solid #492365;
+            border-radius: 4px;
+            padding: 10px 14px;
+            margin-top: -10px;
+            margin-bottom: 18px;
+            display: none;
+        }
+
+        #poster-info .poster-title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #222;
+        }
+
+        #poster-info .poster-author {
+            font-size: 14px;
+            color: #555;
+            margin-top: 3px;
+        }
+
+        #poster-error {
+            color: #c0392b;
+            font-size: 14px;
+            margin-top: -12px;
+            margin-bottom: 14px;
+            display: none;
+        }
+
+        fieldset {
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px 14px 12px;
+            margin-bottom: 14px;
+        }
+
+        legend {
+            font-size: 14px;
+            font-weight: bold;
+            color: #333;
+            padding: 0 6px;
+            line-height: 1.4;
+        }
+
+        .radio-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .radio-row label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-size: 14px;
+            color: #444;
+            cursor: pointer;
+            background: #f0eaf7;
+            border: 2px solid #c9b8dc;
+            border-radius: 6px;
+            padding: 7px 16px;
+            transition: background 0.15s, border-color 0.15s;
+            user-select: none;
+            min-width: 44px;
+        }
+
+        .radio-row input[type="radio"] {
+            display: none;
+        }
+
+        .radio-row label:has(input:checked) {
+            background: #492365;
+            border-color: #492365;
+            color: white;
+        }
+
+        .radio-row label:hover {
+            border-color: #492365;
+        }
+
+        button[type="submit"] {
+            background-color: #492365;
+            color: white;
+            padding: 11px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        button[type="submit"]:hover:not(:disabled) {
+            background-color: #3a1c4e;
+        }
+
+        button[type="submit"]:disabled {
+            background-color: #b0a0be;
+            cursor: not-allowed;
+        }
+
+        #confirmation-message {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #492365;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            z-index: 1000;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        #confirmation-message.show { opacity: 1; }
+        #confirmation-message.fade-out { opacity: 0; }
+    </style>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<div id="confirmation-message">&#10003; Score submitted successfully</div>
+
+<form id="judging-form" novalidate>
+    <h2>Poster Judging</h2>
+
+    <label class="field-label" for="judgeNameInput">Your name</label>
+    <input type="text" id="judgeNameInput" name="judge_name"
+           maxlength="100" autocomplete="off" placeholder="First Last">
+
+    <label class="field-label" for="posterNumberInput">Poster number</label>
+    <input type="text" id="posterNumberInput" name="poster_number"
+           maxlength="10" autocomplete="off" placeholder="e.g. 3">
+
+    <div id="poster-info">
+        <div class="poster-title" id="posterTitle"></div>
+        <div class="poster-author" id="posterAuthor"></div>
+    </div>
+    <div id="poster-error">Poster not found &mdash; check the number and try again.</div>
+
+    <!-- ── Rubric items: edit the five <legend> labels below ── -->
+
+    <fieldset>
+        <legend>1. Lorem ipsum dolor sit amet, consectetur adipiscing elit</legend>
+        <div class="radio-row">
+            <label><input type="radio" name="score_1" value="1">1</label>
+            <label><input type="radio" name="score_1" value="2">2</label>
+            <label><input type="radio" name="score_1" value="3">3</label>
+            <label><input type="radio" name="score_1" value="4">4</label>
+            <label><input type="radio" name="score_1" value="5">5</label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>2. Sed do eiusmod tempor incididunt ut labore et dolore</legend>
+        <div class="radio-row">
+            <label><input type="radio" name="score_2" value="1">1</label>
+            <label><input type="radio" name="score_2" value="2">2</label>
+            <label><input type="radio" name="score_2" value="3">3</label>
+            <label><input type="radio" name="score_2" value="4">4</label>
+            <label><input type="radio" name="score_2" value="5">5</label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>3. Magna aliqua ut enim ad minim veniam quis nostrud</legend>
+        <div class="radio-row">
+            <label><input type="radio" name="score_3" value="1">1</label>
+            <label><input type="radio" name="score_3" value="2">2</label>
+            <label><input type="radio" name="score_3" value="3">3</label>
+            <label><input type="radio" name="score_3" value="4">4</label>
+            <label><input type="radio" name="score_3" value="5">5</label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>4. Exercitation ullamco laboris nisi aliquip ex ea commodo</legend>
+        <div class="radio-row">
+            <label><input type="radio" name="score_4" value="1">1</label>
+            <label><input type="radio" name="score_4" value="2">2</label>
+            <label><input type="radio" name="score_4" value="3">3</label>
+            <label><input type="radio" name="score_4" value="4">4</label>
+            <label><input type="radio" name="score_4" value="5">5</label>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend>5. Duis aute irure dolor in reprehenderit in voluptate</legend>
+        <div class="radio-row">
+            <label><input type="radio" name="score_5" value="1">1</label>
+            <label><input type="radio" name="score_5" value="2">2</label>
+            <label><input type="radio" name="score_5" value="3">3</label>
+            <label><input type="radio" name="score_5" value="4">4</label>
+            <label><input type="radio" name="score_5" value="5">5</label>
+        </div>
+    </fieldset>
+
+    <button type="submit" id="submitBtn" disabled>Submit Scores</button>
+</form>
+
+<script>
+    // ── Paste your Google Apps Script Web App URL here ───────────────────
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby1go6lVypTGq0c6R12Goxj06r8rcVZmBG9hoM9o4zlm_-gVczltAxOqSAf_zQTuTjPHg/exec';
+    // ────────────────────────────────────────────────────────────────────
+
+    let posterMap = {};      // keyed by poster number string
+    let currentPoster = null; // null when no valid poster is selected
+
+    // ── Load and parse /assets/posterlist.csv on page load ───────────────
+    function parseCSV(text) {
+        const lines = text.trim().split('\n');
+        if (lines.length < 2) return {};
+        const headers = splitCSVRow(lines[0]).map(h => h.trim());
+        const map = {};
+        for (let i = 1; i < lines.length; i++) {
+            const cols = splitCSVRow(lines[i]);
+            if (cols.length < 2) continue;
+            const row = {};
+            headers.forEach((h, idx) => { row[h] = (cols[idx] || '').trim(); });
+            const num = row['Poster Number'];
+            if (num) map[num] = row;
+        }
+        return map;
+    }
+
+    // Handles quoted fields that contain commas
+    function splitCSVRow(row) {
+        const result = [];
+        let cur = '', inQuotes = false;
+        for (let i = 0; i < row.length; i++) {
+            const ch = row[i];
+            if (ch === '"') {
+                if (inQuotes && row[i + 1] === '"') { cur += '"'; i++; }
+                else { inQuotes = !inQuotes; }
+            } else if (ch === ',' && !inQuotes) {
+                result.push(cur); cur = '';
+            } else {
+                cur += ch;
+            }
+        }
+        result.push(cur);
+        return result;
+    }
+
+    fetch('/assets/posterlist.csv')
+        .then(r => r.text())
+        .then(text => { posterMap = parseCSV(text); })
+        .catch(err => console.error('Could not load poster list:', err));
+
+    // ── Poster number lookup ─────────────────────────────────────────────
+    document.getElementById('posterNumberInput').addEventListener('input', function () {
+        const num = this.value.trim();
+        const infoEl  = document.getElementById('poster-info');
+        const errorEl = document.getElementById('poster-error');
+
+        if (!num) {
+            currentPoster = null;
+            infoEl.style.display  = 'none';
+            errorEl.style.display = 'none';
+            validateForm();
+            return;
+        }
+
+        const poster = posterMap[num];
+        if (poster) {
+            currentPoster = poster;
+            document.getElementById('posterTitle').textContent = poster['Title'];
+            const student = poster['Student'];
+            const authorText = (student && student.toLowerCase() !== 'no')
+                ? poster['Author'] + ' (' + student + ')'
+                : poster['Author'];
+            document.getElementById('posterAuthor').textContent = authorText;
+            infoEl.style.display  = 'block';
+            errorEl.style.display = 'none';
+        } else {
+            currentPoster = null;
+            infoEl.style.display  = 'none';
+            errorEl.style.display = 'block';
+        }
+        validateForm();
+    });
+
+    // ── Enable submit only when all fields are complete ──────────────────
+    function validateForm() {
+        const judgeName = document.getElementById('judgeNameInput').value.trim();
+        const allScored = [1, 2, 3, 4, 5].every(n =>
+            document.querySelector('input[name="score_' + n + '"]:checked')
+        );
+        document.getElementById('submitBtn').disabled =
+            !(judgeName.length > 0 && currentPoster !== null && allScored);
+    }
+
+    document.getElementById('judgeNameInput').addEventListener('input', validateForm);
+    document.querySelectorAll('input[type="radio"]').forEach(r =>
+        r.addEventListener('change', validateForm)
+    );
+
+    // ── Submit ───────────────────────────────────────────────────────────
+    document.getElementById('judging-form').addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        const scoreFor = n =>
+            parseInt(document.querySelector('input[name="score_' + n + '"]:checked').value, 10);
+
+        const student = currentPoster['Student'];
+        const studentVal = (student && student.toLowerCase() !== 'no') ? student : '';
+
+        const data = {
+            timestamp:      new Date().toISOString(),
+            judge_name:     sanitizeInput(document.getElementById('judgeNameInput').value.trim()),
+            poster_number:  sanitizeInput(document.getElementById('posterNumberInput').value.trim()),
+            poster_title:   sanitizeInput(currentPoster['Title']),
+            poster_author:  sanitizeInput(currentPoster['Author']),
+            poster_student: sanitizeInput(studentVal),
+            score_1:        scoreFor(1),
+            score_2:        scoreFor(2),
+            score_3:        scoreFor(3),
+            score_4:        scoreFor(4),
+            score_5:        scoreFor(5),
+        };
+
+        fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        })
+        .then(() => {
+            document.getElementById('judging-form').reset();
+            document.getElementById('poster-info').style.display = 'none';
+            document.getElementById('poster-error').style.display = 'none';
+            currentPoster = null;
+            document.getElementById('submitBtn').disabled = true;
+            showConfirmation();
+        })
+        .catch(err => console.error('Submission error:', err));
+    });
+
+    function sanitizeInput(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function showConfirmation() {
+        const message = document.getElementById('confirmation-message');
+        message.classList.add('show');
+        setTimeout(function () {
+            message.classList.remove('show');
+            message.classList.add('fade-out');
+            setTimeout(function () { message.classList.remove('fade-out'); }, 300);
+        }, 2500);
+    }
+</script>
