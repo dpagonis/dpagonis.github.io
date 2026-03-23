@@ -117,6 +117,55 @@ layout: no_header
             display: none;
         }
 
+        #poster-number-wrap {
+            position: relative;
+            margin-bottom: 18px;
+        }
+
+        #poster-number-wrap input[type="text"] {
+            margin-bottom: 0;
+        }
+
+        #poster-suggestions {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #c9b8dc;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.12);
+            z-index: 100;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        #poster-suggestions .suggestion {
+            padding: 9px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 1px solid #f0eaf7;
+        }
+
+        #poster-suggestions .suggestion:last-child { border-bottom: none; }
+
+        #poster-suggestions .suggestion:hover { background: #eee8f4; }
+
+        #poster-suggestions .sug-num {
+            font-weight: bold;
+            color: #492365;
+        }
+
+        #poster-suggestions .sug-author { color: #333; }
+
+        #poster-suggestions .sug-title {
+            color: #888;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
         fieldset {
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -224,8 +273,11 @@ layout: no_header
            maxlength="100" autocomplete="off" placeholder="First Last">
 
     <label class="field-label" for="posterNumberInput">Poster number</label>
-    <input type="text" id="posterNumberInput" name="poster_number"
-           maxlength="10" autocomplete="off" placeholder="e.g. 3">
+    <div id="poster-number-wrap">
+        <input type="text" id="posterNumberInput" name="poster_number"
+               maxlength="30" autocomplete="off" placeholder="e.g. 3, or type an author name">
+        <div id="poster-suggestions"></div>
+    </div>
 
     <div id="poster-info">
         <div class="poster-title" id="posterTitle"></div>
@@ -342,37 +394,93 @@ layout: no_header
         .then(text => { posterMap = parseCSV(text); })
         .catch(err => console.error('Could not load poster list:', err));
 
-    // ── Poster number lookup ─────────────────────────────────────────────
+    // ── Poster display helper ────────────────────────────────────────────
+    function selectPoster(poster) {
+        currentPoster = poster;
+        document.getElementById('posterTitle').textContent = poster['Title'];
+        const student = poster['Student'];
+        const authorText = (student && student.toLowerCase() !== 'no')
+            ? poster['Author'] + ' (' + student + ')'
+            : poster['Author'];
+        document.getElementById('posterAuthor').textContent = authorText;
+        document.getElementById('poster-info').style.display  = 'block';
+        document.getElementById('poster-error').style.display = 'none';
+        const sugEl = document.getElementById('poster-suggestions');
+        sugEl.style.display = 'none';
+        sugEl.innerHTML = '';
+    }
+
+    // ── Poster number lookup + author search ─────────────────────────────
     document.getElementById('posterNumberInput').addEventListener('input', function () {
-        const num = this.value.trim();
+        const val     = this.value.trim();
         const infoEl  = document.getElementById('poster-info');
         const errorEl = document.getElementById('poster-error');
+        const sugEl   = document.getElementById('poster-suggestions');
 
-        if (!num) {
+        if (!val) {
             currentPoster = null;
             infoEl.style.display  = 'none';
             errorEl.style.display = 'none';
+            sugEl.style.display   = 'none';
+            sugEl.innerHTML = '';
             validateForm();
             return;
         }
 
-        const poster = posterMap[num];
-        if (poster) {
-            currentPoster = poster;
-            document.getElementById('posterTitle').textContent = poster['Title'];
-            const student = poster['Student'];
-            const authorText = (student && student.toLowerCase() !== 'no')
-                ? poster['Author'] + ' (' + student + ')'
-                : poster['Author'];
-            document.getElementById('posterAuthor').textContent = authorText;
-            infoEl.style.display  = 'block';
-            errorEl.style.display = 'none';
+        if (/^\d+$/.test(val)) {
+            // Pure digits → exact poster number lookup
+            sugEl.style.display = 'none';
+            sugEl.innerHTML = '';
+            const poster = posterMap[val];
+            if (poster) {
+                selectPoster(poster);
+            } else {
+                currentPoster = null;
+                infoEl.style.display  = 'none';
+                errorEl.style.display = 'block';
+            }
         } else {
+            // Text → search author names; all typed tokens must appear somewhere in the name
             currentPoster = null;
             infoEl.style.display  = 'none';
-            errorEl.style.display = 'block';
+            errorEl.style.display = 'none';
+            const tokens = val.toLowerCase().split(/\s+/).filter(Boolean);
+            const matches = Object.entries(posterMap).filter(([, p]) =>
+                tokens.every(t => p['Author'].toLowerCase().includes(t))
+            );
+            if (matches.length === 0) {
+                sugEl.style.display = 'none';
+                sugEl.innerHTML = '';
+            } else {
+                sugEl.innerHTML = matches.map(([num, p]) =>
+                    '<div class="suggestion" data-num="' + num + '">' +
+                    '<span class="sug-num">#' + num + ' </span>' +
+                    '<span class="sug-author">' + p['Author'] + '</span>' +
+                    '<div class="sug-title">' + p['Title'] + '</div>' +
+                    '</div>'
+                ).join('');
+                sugEl.style.display = 'block';
+            }
         }
         validateForm();
+    });
+
+    // ── Click a suggestion ───────────────────────────────────────────────
+    document.getElementById('poster-suggestions').addEventListener('click', function (e) {
+        const item = e.target.closest('.suggestion');
+        if (!item) return;
+        const num = item.dataset.num;
+        document.getElementById('posterNumberInput').value = num;
+        selectPoster(posterMap[num]);
+        validateForm();
+    });
+
+    // ── Dismiss suggestions on outside click ─────────────────────────────
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#poster-number-wrap')) {
+            const sugEl = document.getElementById('poster-suggestions');
+            sugEl.style.display = 'none';
+        }
     });
 
     // ── Enable submit only when all fields are complete ──────────────────
@@ -424,6 +532,8 @@ layout: no_header
             document.getElementById('judging-form').reset();
             document.getElementById('poster-info').style.display = 'none';
             document.getElementById('poster-error').style.display = 'none';
+            document.getElementById('poster-suggestions').style.display = 'none';
+            document.getElementById('poster-suggestions').innerHTML = '';
             currentPoster = null;
             document.getElementById('submitBtn').disabled = true;
             showConfirmation();
